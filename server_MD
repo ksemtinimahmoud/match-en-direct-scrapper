@@ -1,0 +1,107 @@
+
+var express = require('express');
+var fs 		= require('fs');
+var request = require('request');
+var cheerio = require('cheerio');
+var app     = express();
+var mysql   = require('mysql');
+
+
+
+var connection = mysql.createConnection({
+  host     : 'localhost',
+  user     : 'root',
+  password : '',
+  database : 'matchendirect'
+});
+
+connection.connect();
+
+
+app.get('/scrape', function(req, res){
+
+
+
+var d 		=new Date();
+var jour	=d.getDate();
+var mois	=d.getMonth()+1;
+var an		=d.getFullYear();
+
+
+lien='http://www.matchendirect.fr/resultat-foot-';
+url = lien+jour+'-'+mois+'-'+an+'/' ;
+
+	
+
+	//url = 'http://www.matchendirect.fr/resultat-foot-07-12-2014/';
+
+
+		results = null;
+		results = [];
+		var equipe1, equipe2, score;  
+
+	request(url, function(error, response, html){
+		if(!error){
+			var $ = cheerio.load(html);
+
+			
+
+			$('.tableau').filter(function(){
+		        var data = $(this);
+		        data.find('tr').each(function(i, elem) {
+		       
+
+		     
+			 equipe1 = $(this).find('.lm3').text();
+			 equipe2 = $(this).find('.lm5').text();
+			 score = $(this).find('.lm4').text();  
+
+			 // pour les cartons (premier caractère le equipe 1 et dernier caractère de equipe 2)
+
+			 if (equipe1[0]>= 1) equipe1=equipe1.slice(1) ;
+			 if (equipe2[equipe2.length -1 ]>= 1) equipe2=equipe2.substr(0,equipe2.length -1) ;           
+             
+			 // insertion bdd
+			var query = "insert into `match`(equipe1,equipe2,but1,but2) values('"+equipe1+"','"+equipe2+"',"+score[0]+","+score[score.length -1]+")";
+			connection.query(query,function(err, rows, fields) {
+  			if (err) throw err;
+			 });
+
+                
+           // pour recevoir un output en format json enlever les commentires
+
+             /*   var json = { equipe1 : "", equipe2 : "", score : ""};
+				json.equipe1 = equipe1;
+                json.equipe2 = equipe2;
+                json.score = score;
+		    	 results.push(json);
+		        
+		    */
+
+	        })
+	        })
+			connection.end();
+            }
+
+       //json :
+
+        /*fs.writeFile('output.json', JSON.stringify(results, null, 4), function(err){
+
+        	console.log('File successfully written! - Check your project directory for the output.json file');
+		
+        })
+        */
+
+        // Finally, we'll just send out a message to the browser reminding you that this app does not have a UI.
+        res.send('Check your console!')
+	})
+})
+
+
+
+app.listen('8081')
+console.log('Magic happens on port 8081');
+exports = module.exports = app;
+
+
+
